@@ -1,64 +1,44 @@
-[README.md](https://github.com/user-attachments/files/33520246/README.md)
-# Fermyx 1.0.0
+[README.md](https://github.com/user-attachments/files/33541922/README.md)
+# Fermyx
 
-See the [diagnostics guide](docs/DIAGNOSTICS_GUIDE.md) for log locations, event fields, and the Windows collection command.
+Fermyx is a Windows desktop audio workspace for per-app mixing and routing, profiles, rules, live sound processing, audio tools, recording, and a soundboard. The source is proprietary and belongs in a **private** repository. This README describes the codebase; it is not a public source license or a release announcement.
 
-Fermyx is a Windows desktop audio mixer and toolkit. The Tauri shell and
-dedicated Rust Core manage Windows audio sessions and devices. The Vite frontend
-provides the Mixer, Devices & Routing, Sound, Audio Tools, Soundboard, Recording,
-Profiles, Rules, Hotkeys, and Activity pages. A separate .NET Sound Host and
-native DSP component support live processing and recording.
+## Architecture
 
-## Develop
+| Component | Responsibility |
+| --- | --- |
+| `src/`, `index.html` | Tauri WebView UI, localization, state, and native bridge |
+| `src-tauri/src/` | Desktop shell, dedicated Rust Core, Windows audio and persistence |
+| `src-tauri/sound_host/`, `native_audio/`, `route_policy/` | Live processing, DSP and Windows routing helpers |
+| `src-tauri/windows/identity/` | Windows app identity and installer hooks |
+| `scripts/`, `native-tests/` | Release preparation and regression checks |
+| `docs/` | Engineering, diagnostics, privacy, and Windows build guidance |
 
-Use a supported Node.js release (`^22.22.2`, `^24.15.0`, or `>=26`), Rust with
-the MSVC target, the .NET 9 SDK, MSVC C++ Build Tools, the Windows SDK, and
-WebView2. In a Windows PowerShell terminal:
+The UI sends versioned requests to a dedicated Core process. Native audio and long-running work stay off the WebView thread. Signed releases use the Tauri updater and a public GitHub **release repository** as the binary distribution endpoint. Keep the source repository private; publish only intended installer, signature, and manifest assets.
+
+## Windows development
+
+Install a supported Node.js version (`^22.22.2`, `^24.15.0`, or `>=26`), Rust with the MSVC target, .NET 9 SDK, MSVC C++ Build Tools, Windows SDK, and WebView2. In PowerShell at the project root:
 
 ```powershell
 npm ci
 npm run tauri:dev
 ```
 
-The Sound Host and native DSP compile before Tauri starts. `?dev=1` is an
-explicit frontend preview mode; it does not simulate real Windows audio in a
-release build.
+The dev task compiles the Sound Host and native DSP before launching the shell. Frontend preview mode does not reproduce Windows device routing. Live Sound requires VB-CABLE; Fermyx provides an in-app setup flow. Test audio changes on real Windows hardware.
 
-## Verify and build
+## Verification and release
 
 ```powershell
 npm run release:check
 ```
 
-This runs the full project audit and Vite production build. For a signed
-Windows NSIS release, follow [the Windows build guide](docs/BUILD_WINDOWS.md)
-and [release checklist](docs/RELEASE_CHECKLIST.md). A normal `tauri:build` is
-useful for local tests but does not create the signed notification identity.
+See [Windows build](docs/BUILD_WINDOWS.md) and [release checklist](docs/RELEASE_CHECKLIST.md). For each release, update `package.json`, run `npm run release:sync`, then `npm run release:check`. Sign the updater bundle with a private key stored outside the repository. The public key and update endpoint are build configuration; never commit the private key, password, personal diagnostics, or user data. The NSIS install location follows the installed executable; user data is separate from the install directory.
 
-The public version is **1.0.0**. `release/identity.json` contains a separate,
-monotonically increasing Windows package version for notification registration;
-this allows upgrades from the prior 24.x development identity. Run
-`npm run release:sync` after intentionally changing the app version, then
-`npm run release:check`. Preserve the Tauri identifier and persisted state
-schema unless a separately tested data migration accompanies the change.
+## Data and diagnostics
 
-## Source layout
+Settings, profiles, rules, recordings, and activity history are kept in `%APPDATA%\Fermyx`; cache and WebView2 data live under `%LOCALAPPDATA%\Fermyx`. Updates must preserve these directories. See [Windows identity and data](docs/windows-identity.md), [diagnostics](docs/DIAGNOSTICS_GUIDE.md), and the bundled privacy policy. Diagnostics can contain machine paths, process names, and audio device details: remove sensitive fields before sharing.
 
-| Path | Purpose |
-| --- | --- |
-| `src/`, `index.html` | Frontend, native bridge, styles and locales |
-| `src-tauri/src/` | Shell, Core process, Windows audio and data migration |
-| `src-tauri/sound_host/`, `route_policy/`, `native_audio/` | Audio helper processes and DSP |
-| `src-tauri/windows/identity/` | Windows sparse identity manifest and installer hooks |
-| `scripts/`, `native-tests/` | Build tooling and regression checks |
-| `docs/` | Current release guidance and historical engineering reports |
+## Ownership and third-party notices
 
-User data is stored in `%APPDATA%\Fermyx`; local caches and WebView2 data are
-in `%LOCALAPPDATA%\Fermyx`. The app migrates older
-`com.fermyx.desktop` folders without overwriting newer data. The 1.0.0 label
-does not reset profiles, rules, recordings, or settings. See
-[Windows identity and data](docs/windows-identity.md).
-
-Live Sound requires VB-CABLE on the user's PC. Fermyx offers the in-app setup
-flow; audio and device behavior still needs testing on actual Windows hardware.
-Historical development reports are kept in [`docs/history/`](docs/history/).
+All Fermyx-specific source is private unless separately licensed. Third-party components keep their own licenses and notices. Consult the bundled third-party notices and legal release audit before shipping binaries. This README does not grant redistribution rights to the source tree.
